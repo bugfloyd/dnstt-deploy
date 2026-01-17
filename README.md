@@ -241,6 +241,34 @@ bash <(curl -Ls https://raw.githubusercontent.com/bugfloyd/dnstt-deploy/main/dns
 # The script will detect and install updates automatically
 ```
 
+### Uninstalling
+
+To completely remove dnstt server and all its components:
+
+```bash
+bash <(curl -Ls https://raw.githubusercontent.com/bugfloyd/dnstt-deploy/main/dnstt-deploy.sh) uninstall
+```
+
+Or if the script is installed:
+
+```bash
+dnstt-deploy uninstall
+```
+
+The uninstall process will:
+- Stop and disable all services (dnstt-server and danted)
+- Remove systemd service files
+- Remove the dnstt-server binary
+- Remove configuration files and directory (`/etc/dnstt`)
+- Remove iptables rules
+- Remove firewall rules (firewalld/ufw)
+- Remove the `dnstt` system user
+- Optionally remove the `dnstt-deploy` script itself (with confirmation)
+
+**Note**: If you installed Dante (dante-server) via package manager, you may want to remove it manually:
+- **RHEL-based** (dnf/yum): `sudo dnf remove dante-server` or `sudo yum remove dante-server`
+- **Debian-based** (apt): `sudo apt remove dante-server`
+
 ## Troubleshooting
 
 ### Using the Built-in Tools

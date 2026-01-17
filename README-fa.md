@@ -242,6 +242,34 @@ bash <(curl -Ls https://raw.githubusercontent.com/bugfloyd/dnstt-deploy/main/dns
 # اسکریپت به طور خودکار بروزرسانی‌ها را تشخیص داده و نصب خواهد کرد
 ```
 
+### حذف نصب
+
+برای حذف کامل سرور dnstt و تمام اجزای آن:
+
+```bash
+bash <(curl -Ls https://raw.githubusercontent.com/bugfloyd/dnstt-deploy/main/dnstt-deploy.sh) uninstall
+```
+
+یا اگر اسکریپت نصب شده است:
+
+```bash
+dnstt-deploy uninstall
+```
+
+فرآیند حذف نصب موارد زیر را انجام خواهد داد:
+- توقف و غیرفعال کردن تمام سرویس‌ها (dnstt-server و danted)
+- حذف فایل‌های سرویس systemd
+- حذف باینری dnstt-server
+- حذف فایل‌ها و دایرکتوری پیکربندی (`/etc/dnstt`)
+- حذف قوانین iptables
+- حذف قوانین firewall (firewalld/ufw)
+- حذف کاربر سیستم `dnstt`
+- حذف اختیاری اسکریپت `dnstt-deploy` (با تأیید)
+
+**توجه**: اگر Dante (dante-server) را از طریق package manager نصب کرده‌اید، ممکن است بخواهید آن را به صورت دستی حذف کنید:
+- **RHEL-based** (dnf/yum): `sudo dnf remove dante-server` یا `sudo yum remove dante-server`
+- **Debian-based** (apt): `sudo apt remove dante-server`
+
 ## عیب‌یابی
 
 ### استفاده از ابزارهای داخلی

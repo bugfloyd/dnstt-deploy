@@ -1113,8 +1113,162 @@ display_final_info() {
     print_success_box
 }
 
+# Function to remove iptables rules
+remove_iptables_rules() {
+    print_status "Removing iptables rules..."
+
+    if ! command -v iptables &> /dev/null; then
+        print_warning "iptables not found, skipping rule removal"
+        return 0
+    fi
+
+    # Get the primary network interface
+    local interface
+    interface=$(ip route | grep default | awk '{print $5}' | head -1)
+    if [[ -z "$interface" ]]; then
+        interface=$(ip link show | grep -E "^[0-9]+: (eth|ens|enp)" | head -1 | cut -d':' -f2 | awk '{print $1}')
+        if [[ -z "$interface" ]]; then
+            interface="eth0"
+        fi
+    fi
+
+    # Remove IPv4 rules
+    print_status "Removing IPv4 iptables rules..."
+    iptables -D INPUT -p udp --dport "$DNSTT_PORT" -j ACCEPT 2>/dev/null || true
+    iptables -t nat -D PREROUTING -i "$interface" -p udp --dport 53 -j REDIRECT --to-ports "$DNSTT_PORT" 2>/dev/null || true
+
+    # Remove IPv6 rules if available
+    if command -v ip6tables &> /dev/null && [ -f /proc/net/if_inet6 ]; then
+        print_status "Removing IPv6 iptables rules..."
+        ip6tables -D INPUT -p udp --dport "$DNSTT_PORT" -j ACCEPT 2>/dev/null || true
+        ip6tables -t nat -D PREROUTING -i "$interface" -p udp --dport 53 -j REDIRECT --to-ports "$DNSTT_PORT" 2>/dev/null || true
+    fi
+
+    # Save iptables rules after removal
+    save_iptables_rules
+
+    print_status "iptables rules removed"
+}
+
+# Function to remove firewall rules
+remove_firewall_rules() {
+    print_status "Removing firewall rules..."
+
+    # Remove firewalld rules
+    if command -v firewall-cmd &> /dev/null && systemctl is-active --quiet firewalld; then
+        print_status "Removing firewalld rules..."
+        firewall-cmd --permanent --remove-port="$DNSTT_PORT"/udp 2>/dev/null || true
+        firewall-cmd --permanent --remove-port=53/udp 2>/dev/null || true
+        firewall-cmd --reload 2>/dev/null || true
+        print_status "Firewalld rules removed"
+    fi
+
+    # Remove ufw rules
+    if command -v ufw &> /dev/null && ufw status | grep -q "Status: active"; then
+        print_status "Removing ufw rules..."
+        ufw delete allow "$DNSTT_PORT"/udp 2>/dev/null || true
+        ufw delete allow 53/udp 2>/dev/null || true
+        print_status "UFW rules removed"
+    fi
+}
+
+# Function to uninstall dnstt
+uninstall() {
+    print_status "Starting dnstt uninstallation..."
+
+    # Detect OS for package manager
+    detect_os
+
+    # Stop and disable services
+    print_status "Stopping services..."
+    if systemctl is-active --quiet dnstt-server; then
+        systemctl stop dnstt-server
+        print_status "dnstt-server service stopped"
+    fi
+
+    if systemctl is-active --quiet danted; then
+        systemctl stop danted
+        print_status "Dante service stopped"
+    fi
+
+    # Disable services
+    if systemctl is-enabled --quiet dnstt-server 2>/dev/null; then
+        systemctl disable dnstt-server
+        print_status "dnstt-server service disabled"
+    fi
+
+    if systemctl is-enabled --quiet danted 2>/dev/null; then
+        systemctl disable danted
+        print_status "Dante service disabled"
+    fi
+
+    # Remove systemd service files
+    print_status "Removing systemd service files..."
+    if [ -f "${SYSTEMD_DIR}/dnstt-server.service" ]; then
+        rm -f "${SYSTEMD_DIR}/dnstt-server.service"
+        systemctl daemon-reload
+        print_status "Systemd service file removed"
+    fi
+
+    # Remove binaries
+    print_status "Removing binaries..."
+    if [ -f "${INSTALL_DIR}/dnstt-server" ]; then
+        rm -f "${INSTALL_DIR}/dnstt-server"
+        print_status "dnstt-server binary removed"
+    fi
+
+    # Remove configuration files
+    print_status "Removing configuration files..."
+    if [ -d "$CONFIG_DIR" ]; then
+        rm -rf "$CONFIG_DIR"
+        print_status "Configuration directory removed: $CONFIG_DIR"
+    fi
+
+    # Remove iptables rules
+    remove_iptables_rules
+
+    # Remove firewall rules
+    remove_firewall_rules
+
+    # Remove dnstt user
+    print_status "Removing dnstt user..."
+    if id "$DNSTT_USER" &>/dev/null; then
+        userdel "$DNSTT_USER" 2>/dev/null || true
+        print_status "User $DNSTT_USER removed"
+    fi
+
+    # Optionally remove dnstt-deploy script
+    print_question "Do you want to remove the dnstt-deploy script itself? (y/N): "
+    read -r remove_script
+    if [[ "$remove_script" =~ ^[Yy]$ ]]; then
+        if [ -f "$SCRIPT_INSTALL_PATH" ]; then
+            rm -f "$SCRIPT_INSTALL_PATH"
+            print_status "dnstt-deploy script removed from $SCRIPT_INSTALL_PATH"
+        fi
+    fi
+
+    print_status "Uninstallation completed successfully!"
+    echo ""
+    print_status "Note: If you installed Dante (dante-server) via package manager,"
+    print_status "      you may want to remove it manually with:"
+    case $PKG_MANAGER in
+        dnf|yum)
+            echo -e "      ${YELLOW}$PKG_MANAGER remove dante-server${NC}"
+            ;;
+        apt)
+            echo -e "      ${YELLOW}apt remove dante-server${NC}"
+            ;;
+    esac
+}
+
 # Main function
 main() {
+    # Check for uninstall argument
+    if [ "$1" = "uninstall" ]; then
+        uninstall
+        exit 0
+    fi
+
     # If not running from installed location (curl/GitHub), install the script first
     if [ "$0" != "$SCRIPT_INSTALL_PATH" ]; then
         print_status "Installing dnstt-deploy script..."
