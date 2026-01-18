@@ -100,6 +100,8 @@ During the setup (option 1), you'll be prompted for:
 - Automatically detects SSH port (default: 22)
 - Perfect for secure shell access via DNS
 - Compatible with mobile apps
+- Once the server is set up, you need to assign a new password to the dnstt `sudo passwd newuser`
+- Make sure to check the `/etc/ssh/sshd_config` file and ensure `PasswordAuthentication` is set to `yes` to enable password-based login.
 
 ### MTU Settings
 - **Default**: 1232 bytes
