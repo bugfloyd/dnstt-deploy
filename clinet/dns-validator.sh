@@ -6,7 +6,7 @@ DNSTT_EXE="./dnstt-client"
 # Path to your public key file
 PUBKEY_FILE="server.pub"
 # Input file with one IP per line
-DNS_LIST="dns_list.txt"
+DNS_LIST="ir_dns_servers.txt"
 # Output file for successful IPs
 OUTPUT_FILE="working_dns.txt"
 
