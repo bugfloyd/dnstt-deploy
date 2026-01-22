@@ -287,11 +287,27 @@ curl --socks5 127.0.0.1:1080 http://httpbin.org/ip  # Test SOCKS proxy locally
 sudo cat /etc/danted.conf                           # Check Dante configuration
 ```
 
-**Port Check**:
+**Port Check - Listening Sockets**:
 ```bash
 sudo ss -tulnp | grep 5300  # Check dnstt-server port
 sudo ss -tulnp | grep 1080  # Check SOCKS proxy port (if enabled)
 ```
+
+**Port Check - Firewall**
+```bash
+# On client with direct access to server
+dnstt-client -udp tns.example.com:5300 -pubkey-file server.pub t.example.com 127.0.0.1:7000
+```
+If you can directly connect, It means your dnstt server is working fine, and the issue is likely network related.
+
+**Port Check - Traffic Redirect**
+```bash
+# On client with direct access to server
+dnstt-client -udp tns.example.com:53 -pubkey-file server.pub t.example.com 127.0.0.1:7000
+```
+If previous command worked, but this one fails, it indicates that either:
+- Traffic redirection `53 -> 5300` is not functioning correctly
+- Your network is blocking DNS traffic to port 53 (Most cloud providers do this by default). You may need to send a ticket to your provider to unblock it. `UDP INBOUND port 53`
 
 ## Advanced Features
 
