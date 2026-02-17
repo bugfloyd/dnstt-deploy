@@ -1,0 +1,39 @@
+name: Multi-Arch Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: linux, arch: amd64}
+          - {os: linux, arch: arm64}
+          - {os: android, arch: arm64}
+          - {os: windows, arch: amd64}
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build Directly
+        run: |
+          # تجهيز البيئة للبناء
+          go mod init build-project || true
+          go mod edit -require github.com/google/dnstt@master
+          go mod download
+          
+          # بناء العميل والسيرفر لكل المعماريات
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -v -o "dnstt-client-${{ matrix.os }}-${{ matrix.arch }}" github.com/google/dnstt/dnstt-client
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -v -o "dnstt-server-${{ matrix.os }}-${{ matrix.arch }}" github.com/google/dnstt/dnstt-server
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: dnstt-${{ matrix.os }}-${{ matrix.arch }}
+          path: dnstt-*
